@@ -11,6 +11,7 @@ export const App: React.FC = () => {
   const [books, setBooks] = useState<BookItem[]>([]);
   const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [selectedBook, setSelectedBook] = useState<BookItem | null>(null);
 
   const debouncedSearch = useDebounce(searchTerm, 400);
@@ -23,31 +24,47 @@ export const App: React.FC = () => {
     if (!debouncedSearch.trim()) {
       setBooks([]);
       setTotalItems(0);
+      setError(null);
       return;
     }
 
+    const controller = new AbortController();
+
     const fetchBooks = async () => {
       setLoading(true);
+      setError(null);
       const startIndex = (page - 1) * limit;
-      const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(
-        debouncedSearch
-      )}&startIndex=${startIndex}&maxResults=${limit}`;
+      const apiKey = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY as string | undefined;
+      const url =
+        `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(debouncedSearch)}` +
+        `&startIndex=${startIndex}&maxResults=${limit}` +
+        (apiKey ? `&key=${encodeURIComponent(apiKey)}` : '');
 
       try {
-        const res = await fetch(url);
+        const res = await fetch(url, { signal: controller.signal });
+        if (!res.ok) {
+          throw new Error(
+            res.status === 429
+              ? 'Quota API di Google Books esaurita. Riprova più tardi o configura una chiave API.'
+              : `Errore dal server (${res.status}).`
+          );
+        }
         const data: BooksApiResponse = await res.json();
         setBooks(data.items || []);
-        // Google Books a volte restituisce valori elevati non accessibili: limitiamo il calcolo
         setTotalItems(data.totalItems || 0);
       } catch (err) {
+        if (controller.signal.aborted) return;
         console.error('Errore durante la chiamata API:', err);
         setBooks([]);
+        setTotalItems(0);
+        setError(err instanceof Error ? err.message : 'Errore di rete.');
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
 
     fetchBooks();
+    return () => controller.abort();
   }, [debouncedSearch, page, limit]);
 
   const totalPages = Math.ceil(totalItems / limit);
@@ -129,7 +146,13 @@ export const App: React.FC = () => {
       )}
 
       {/* Stato Nessun Risultato */}
-      {!loading && debouncedSearch && books.length === 0 && (
+      {!loading && error && (
+        <div className="alert alert-danger text-center mt-4" role="alert">
+          {error}
+        </div>
+      )}
+
+      {!loading && !error && debouncedSearch && books.length === 0 && (
         <div className="alert alert-warning text-center mt-4">
           Nessun libro trovato per "{debouncedSearch}".
         </div>
