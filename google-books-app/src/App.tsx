@@ -1,122 +1,144 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import React, { useState, useEffect } from 'react';
+import type { BookItem, BooksApiResponse } from './types/books';
+import { useDebounce } from './hooks/useDebounce';
+import { BookCard } from './components/BookCard';
+import { BookDetailModal } from './components/BookDetailModal';
 
-function App() {
-  const [count, setCount] = useState(0)
+export const App: React.FC = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [books, setBooks] = useState<BookItem[]>([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [selectedBook, setSelectedBook] = useState<BookItem | null>(null);
+
+  const debouncedSearch = useDebounce(searchTerm, 400);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, limit]);
+
+  useEffect(() => {
+    if (!debouncedSearch.trim()) {
+      setBooks([]);
+      setTotalItems(0);
+      return;
+    }
+
+    const fetchBooks = async () => {
+      setLoading(true);
+      const startIndex = (page - 1) * limit;
+      const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(
+        debouncedSearch
+      )}&startIndex=${startIndex}&maxResults=${limit}`;
+
+      try {
+        const res = await fetch(url);
+        const data: BooksApiResponse = await res.json();
+        setBooks(data.items || []);
+        // Google Books a volte restituisce valori elevati non accessibili: limitiamo il calcolo
+        setTotalItems(data.totalItems || 0);
+      } catch (err) {
+        console.error('Errore durante la chiamata API:', err);
+        setBooks([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBooks();
+  }, [debouncedSearch, page, limit]);
+
+  const totalPages = Math.ceil(totalItems / limit);
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="container py-4">
+      <header className="mb-4 text-center">
+        <h1 className="fw-bold">Google Books Finder</h1>
+        <p className="text-muted">Cerca libri in tempo reale tramite Google Books API</p>
+      </header>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      {/* Controlli di ricerca e paginazione */}
+      <div className="row g-3 mb-4">
+        <div className="col-md-8">
+          <input
+            type="text"
+            className="form-control form-control-lg"
+            placeholder="Scrivi per cercare (live search)..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
+        <div className="col-md-4 d-flex align-items-center justify-content-md-end gap-2">
+          <label htmlFor="limitSelect" className="text-nowrap small fw-bold">Elementi per pagina:</label>
+          <select
+            id="limitSelect"
+            className="form-select w-auto"
+            value={limit}
+            onChange={(e) => setLimit(Number(e.target.value))}
+          >
+            {[5, 10, 15, 20].map((val) => (
+              <option key={val} value={val}>{val}</option>
+            ))}
+          </select>
         </div>
-      </section>
+      </div>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
-}
+      {/* Stato Caricamento */}
+      {loading && (
+        <div className="text-center my-5">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Caricamento...</span>
+          </div>
+        </div>
+      )}
 
-export default App
+      {/* Risultati */}
+      {!loading && books.length > 0 && (
+        <>
+          <div className="row">
+            {books.map((book) => (
+              <BookCard key={book.id} book={book} onSelect={setSelectedBook} />
+            ))}
+          </div>
+
+          {/* Paginatore */}
+          <nav className="d-flex justify-content-between align-items-center mt-4 flex-wrap gap-2">
+            <span className="small text-muted">
+              Pagina {page} di {totalPages > 0 ? totalPages : 1} ({totalItems} risultati totali)
+            </span>
+            <div className="btn-group">
+              <button
+                className="btn btn-outline-primary"
+                disabled={page <= 1}
+                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+              >
+                &laquo; Precedente
+              </button>
+              <button
+                className="btn btn-outline-primary"
+                disabled={page >= totalPages || books.length < limit}
+                onClick={() => setPage((prev) => prev + 1)}
+              >
+                Successivo &raquo;
+              </button>
+            </div>
+          </nav>
+        </>
+      )}
+
+      {/* Stato Nessun Risultato */}
+      {!loading && debouncedSearch && books.length === 0 && (
+        <div className="alert alert-warning text-center mt-4">
+          Nessun libro trovato per "{debouncedSearch}".
+        </div>
+      )}
+
+      {/* Dettaglio modale */}
+      <BookDetailModal book={selectedBook} onClose={() => setSelectedBook(null)} />
+    </div>
+  );
+};
+
+export default App;
