@@ -1,17 +1,22 @@
 # Deploy su GitHub Pages con GitHub Actions
 
-L'app (cartella `google-books-app`) è una SPA statica Vite. Viene pubblicata automaticamente su GitHub Pages tramite il workflow [.github/workflows/deploy.yml](./.github/workflows/deploy.yml).
+Le due versioni dell'app (SPA statiche Vite) vengono pubblicate insieme tramite il workflow [.github/workflows/deploy.yml](../.github/workflows/deploy.yml):
 
-URL finale: `https://growthack90.github.io/ESERCITAZIONE_COLLOQUIO/`
+- Pagina iniziale: `https://growthack90.github.io/ESERCITAZIONE_COLLOQUIO/`
+- Senza Redux: `https://growthack90.github.io/ESERCITAZIONE_COLLOQUIO/no-redux/`
+- Con Redux e RTK Query: `https://growthack90.github.io/ESERCITAZIONE_COLLOQUIO/redux/`
 
 ## Come funziona
 
-A ogni push su `main` (o avviandolo a mano da **Actions → Deploy to GitHub Pages → Run workflow**) il workflow:
+Il deploy parte quando viene pubblicato il tag `v2.0-redux-rtk-query` oppure manualmente da **Actions → Deploy versions to GitHub Pages → Run workflow**. Il workflow:
 
-1. **build**: installa Node 22, esegue `npm ci` e `npm run build` dentro `google-books-app`, passando la chiave API come variabile `VITE_GOOGLE_BOOKS_API_KEY`, e carica la cartella `dist` come artefatto.
-2. **deploy**: pubblica l'artefatto su GitHub Pages.
+1. compila il tag `v1.0-senza-redux` in `no-redux/` e il tag `v2.0-redux-rtk-query` in `redux/`, impostando il `base` Vite corretto per ciascun percorso;
+2. aggiunge una pagina iniziale con i link alle due versioni;
+3. pubblica l'intero sito su GitHub Pages.
 
-In [google-books-app/vite.config.ts](./google-books-app/vite.config.ts) è impostato `base: '/ESERCITAZIONE_COLLOQUIO/'`, necessario perché Pages serve il sito in una sottocartella con il nome del repository. In locale, `npm run dev` risponde quindi su `http://localhost:5173/ESERCITAZIONE_COLLOQUIO/`. Se rinomini il repository, aggiorna questo valore.
+Per pubblicare una nuova versione in futuro, aggiorna i riferimenti ai tag nel workflow e il trigger del deploy, poi crea e pubblica il nuovo tag.
+
+In [vite.config.ts](./vite.config.ts) il `base` predefinito è `/ESERCITAZIONE_COLLOQUIO/`; il workflow lo sovrascrive durante le build di pubblicazione. Se rinomini il repository, aggiorna i percorsi sia nel workflow sia in `../pages/index.html`.
 
 ## Configurazione su GitHub (una tantum)
 
@@ -19,7 +24,7 @@ In [google-books-app/vite.config.ts](./google-books-app/vite.config.ts) è impos
 2. **Settings → Secrets and variables → Actions → New repository secret**:
    - Nome: `VITE_GOOGLE_BOOKS_API_KEY`
    - Valore: la tua chiave Google Books API.
-3. Fai commit e push su `main`: il deploy parte da solo. Lo stato è visibile nella scheda **Actions**.
+3. Pubblica il tag di release previsto dal workflow: il deploy parte da solo. Lo stato è visibile nella scheda **Actions**.
 
 ## Chiave API Google Books
 
@@ -40,5 +45,5 @@ La chiave viene incorporata nel JavaScript pubblicato, quindi è visibile a chiu
 
 - **Pagina bianca o file 404**: controlla che `base` in `vite.config.ts` coincida con il nome del repository.
 - **Errore "Quota API esaurita"**: la chiave non è configurata o il secret ha un nome diverso da `VITE_GOOGLE_BOOKS_API_KEY`.
-- **Il workflow non pubblica**: verifica che la sorgente di Pages sia **GitHub Actions** e che il push sia su `main`.
+- **Il workflow non pubblica**: verifica che la sorgente di Pages sia **GitHub Actions**, che entrambi i tag configurati esistano e che il tag del trigger sia stato pubblicato.
 - Dopo aver cambiato il secret, rilancia il workflow: la chiave è letta solo al momento del build.

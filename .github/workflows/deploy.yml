@@ -1,8 +1,9 @@
-name: Deploy to GitHub Pages
+name: Deploy versions to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    tags:
+      - v2.0-redux-rtk-query
   workflow_dispatch:
 
 permissions:
@@ -17,23 +18,51 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: google-books-app
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout no-Redux version
+        uses: actions/checkout@v4
+        with:
+          ref: v1.0-senza-redux
+          path: sources/no-redux
+
+      - name: Checkout Redux version
+        uses: actions/checkout@v4
+        with:
+          ref: v2.0-redux-rtk-query
+          path: sources/redux
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: google-books-app/package-lock.json
-      - run: npm ci
-      - run: npm run build
+
+      - name: Build no-Redux version
+        working-directory: sources/no-redux/google-books-app
+        run: |
+          npm ci
+          npx tsc -b
+          npx vite build --base=/ESERCITAZIONE_COLLOQUIO/no-redux/
         env:
           VITE_GOOGLE_BOOKS_API_KEY: ${{ secrets.VITE_GOOGLE_BOOKS_API_KEY }}
+
+      - name: Build Redux version
+        working-directory: sources/redux/google-books-app
+        run: |
+          npm ci
+          npx tsc -b
+          npx vite build --base=/ESERCITAZIONE_COLLOQUIO/redux/
+        env:
+          VITE_GOOGLE_BOOKS_API_KEY: ${{ secrets.VITE_GOOGLE_BOOKS_API_KEY }}
+
+      - name: Assemble Pages site
+        run: |
+          mkdir -p site/no-redux site/redux
+          cp -R sources/no-redux/google-books-app/dist/. site/no-redux/
+          cp -R sources/redux/google-books-app/dist/. site/redux/
+          cp pages/index.html site/index.html
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: google-books-app/dist
+          path: site
 
   deploy:
     needs: build
