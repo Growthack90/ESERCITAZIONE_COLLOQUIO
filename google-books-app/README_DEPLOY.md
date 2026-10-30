@@ -18,13 +18,7 @@ Per pubblicare una nuova versione in futuro, aggiorna i riferimenti ai tag nel w
 
 In [vite.config.ts](./vite.config.ts) il `base` predefinito è `/ESERCITAZIONE_COLLOQUIO/`; il workflow lo sovrascrive durante le build di pubblicazione. Se rinomini il repository, aggiorna i percorsi sia nel workflow sia in `../pages/index.html`.
 
-## Configurazione su GitHub (una tantum)
-
-1. **Settings → Pages → Build and deployment → Source**: scegli **GitHub Actions**.
-2. **Settings → Secrets and variables → Actions → New repository secret**:
-   - Nome: `VITE_GOOGLE_BOOKS_API_KEY`
-   - Valore: la tua chiave Google Books API.
-3. Pubblica il tag di release previsto dal workflow: il deploy parte da solo. Lo stato è visibile nella scheda **Actions**.
+Per la configurazione iniziale di Pages, l'autorizzazione del tag nell'environment `github-pages` e i passaggi per rilanciare il deploy, consulta la [guida principale](../README.md).
 
 ## Chiave API Google Books
 
