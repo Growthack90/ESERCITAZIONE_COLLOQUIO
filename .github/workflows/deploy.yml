@@ -58,7 +58,7 @@ jobs:
           mkdir -p site/no-redux site/redux
           cp -R sources/no-redux/google-books-app/dist/. site/no-redux/
           cp -R sources/redux/google-books-app/dist/. site/redux/
-          cp pages/index.html site/index.html
+          cp sources/redux/pages/index.html site/index.html
 
       - uses: actions/upload-pages-artifact@v3
         with:
